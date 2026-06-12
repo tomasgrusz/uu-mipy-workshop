@@ -1,1 +1,1 @@
-# uu-mipy-pygame
+# uu-mipy-workshop
