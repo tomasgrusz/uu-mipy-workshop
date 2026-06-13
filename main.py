@@ -28,7 +28,6 @@ HEIGHT = 720
 BACKGROUND_COLOR = (24, 24, 32)
 FLOOR_TILE_PATH = "sprites/floor-tile.png"
 QR_CODE_PATH = "sprites/qr.png"
-WIN_SCREEN_GIF_PATH = "sprites/win_screen.gif"
 RAGE_QUIT_GIF_PATH = "sprites/rage_quit.gif"
 QR_CODE_SIZE = 132
 END_SCREEN_GIF_SIZE = (300, 169)
@@ -815,7 +814,6 @@ def main():
     qr_code = pygame.image.load(QR_CODE_PATH).convert()
     qr_code = pygame.transform.scale(qr_code, (QR_CODE_SIZE, QR_CODE_SIZE))
     end_gifs = {
-        "win": load_animated_gif(WIN_SCREEN_GIF_PATH, END_SCREEN_GIF_SIZE),
         "rage_quit": load_animated_gif(RAGE_QUIT_GIF_PATH, END_SCREEN_GIF_SIZE),
     }
     floor_rect = get_floor_tile_grid_rect(floor_tile)
