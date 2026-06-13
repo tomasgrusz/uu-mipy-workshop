@@ -47,6 +47,11 @@ def draw_hud(screen, font, score):
     screen.blit(score_surface, score_position)
 
 
+def spawn_roll_effect(roll_effects, floor_rect, color_variant, roll_state):
+    roll_effects[:] = [roll_effect for roll_effect in roll_effects if roll_effect["color_variant"] != color_variant]
+    roll_effects.append(create_roll_effect(floor_rect, color_variant, roll_state))
+
+
 def main():
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -78,22 +83,24 @@ def main():
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 if dice and not dice[selected_index]["roll_state"]["active"]:
                     roll_state = start_die_roll(dice[selected_index])
-                    roll_effects.append(create_roll_effect(
+                    spawn_roll_effect(
+                        roll_effects,
                         floor_rect,
                         dice[selected_index]["color_variant"],
                         roll_state,
-                    ))
+                    )
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 clicked_index = die_at_position(dice, event.pos)
                 if clicked_index is not None:
                     selected_index = clicked_index
                     select_die(dice, selected_index)
                     roll_state = start_die_roll(dice[selected_index])
-                    roll_effects.append(create_roll_effect(
+                    spawn_roll_effect(
+                        roll_effects,
                         floor_rect,
                         dice[selected_index]["color_variant"],
                         roll_state,
-                    ))
+                    )
 
         for die in dice:
             score += update_die_roll(die)

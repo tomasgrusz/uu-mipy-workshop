@@ -8,8 +8,9 @@ from d10_sprites import get_face, scale_face
 
 
 MINI_DIE_SIZE = 36
-BASE_TRAVEL_DURATION_MS = 1100
+BASE_TRAVEL_DURATION_MS = 2100
 BASE_SPIN_DEGREES = 1800
+ROLL_SPIN_DAMPING = 0.98
 
 
 def create_roll_effect(floor_rect, color_variant, roll_state):
@@ -39,6 +40,15 @@ def create_roll_effect(floor_rect, color_variant, roll_state):
 
 
 def update_roll_effect(roll_effect, dt_ms, floor_rect):
+    dt_seconds = dt_ms / 1000.0
+    frame_scale = dt_ms / 16.0
+
+    if abs(roll_effect["spin_velocity"]) > 0.01:
+        roll_effect["angle"] = (roll_effect["angle"] + roll_effect["spin_velocity"] * dt_seconds) % 360
+        roll_effect["spin_velocity"] *= ROLL_SPIN_DAMPING ** frame_scale
+        if abs(roll_effect["spin_velocity"]) <= 0.01:
+            roll_effect["spin_velocity"] = 0.0
+
     if roll_effect["active_motion"]:
         elapsed_ms = pygame.time.get_ticks() - roll_effect["start_time"]
         progress = min(elapsed_ms / roll_effect["duration_ms"], 1.0)
@@ -46,7 +56,6 @@ def update_roll_effect(roll_effect, dt_ms, floor_rect):
 
         roll_effect["x"] = roll_effect["start_x"] + (roll_effect["target_x"] - roll_effect["start_x"]) * eased_progress
         roll_effect["y"] = roll_effect["start_y"] + (roll_effect["target_y"] - roll_effect["start_y"]) * eased_progress
-        roll_effect["angle"] = (roll_effect["angle"] + roll_effect["spin_velocity"] * (dt_ms / 1000.0)) % 360
 
         if progress >= 1.0:
             roll_effect["x"] = roll_effect["target_x"]
@@ -69,8 +78,7 @@ def draw_roll_effect(screen, faces, roll_effect):
     else:
         progress = 1.0
 
-    eased_progress = 1 - (1 - progress) ** 3
-    angle = roll_effect["angle"] + roll_effect["spin_velocity"] * 0.0
+    angle = roll_effect["angle"]
 
     roll_state = roll_effect.get("roll_state")
     if not isinstance(roll_state, dict):
