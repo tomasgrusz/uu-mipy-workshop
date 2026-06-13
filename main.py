@@ -1,7 +1,15 @@
 import pygame
 
-from d10_board import add_die, die_at_position, draw_dice, select_die, start_die_roll, update_die_roll
-from d10_roll_effects import create_roll_effect, draw_roll_effects, update_roll_effects
+from d10_board import (
+    add_die,
+    any_die_moving,
+    die_at_position,
+    draw_dice,
+    draw_dice_summary,
+    select_die,
+    throw_die,
+    update_dice_physics,
+)
 from d10_sprites import load_d10_faces
 
 
@@ -19,6 +27,7 @@ HUD_SHADOW = (0, 0, 0)
 LEVELS = [5, 10, 15, 20, 30]
 LEVEL_DICE = [1, 2, 3, 4, 6]
 MAX_TRIES = 10
+POWER_CHARGE_SPEED = 0.85
 
 WHITE = (255, 255, 255)
 BLACK = (20, 20, 20)
@@ -30,34 +39,41 @@ PANEL_BG = (20, 20, 20)
 
 
 class GameSession:
-    def __init__(self):
+    def __init__(self, floor_rect):
+        self.floor_rect = floor_rect
         self.dice = []
-        self.roll_effects = []
         self.tries_left = MAX_TRIES
         self.current_level = 0
         self.game_state = "playing"
         self.selected_index = 0
+        self.charging_throw = False
+        self.throw_power = 0.0
+        self.waiting_for_settle = False
         self.action_button = None
         self.reset()
 
     def reset(self):
         self.dice = []
-        self.roll_effects = []
         self.tries_left = MAX_TRIES
         self.current_level = 0
         self.game_state = "playing"
         self.selected_index = 0
+        self.charging_throw = False
+        self.throw_power = 0.0
+        self.waiting_for_settle = False
         self.action_button = None
-        setup_level_dice(self.dice, self.current_level)
+        setup_level_dice(self.dice, self.current_level, self.floor_rect)
 
     def next_level(self):
         self.current_level += 1
-        self.roll_effects = []
         self.tries_left = MAX_TRIES
         self.game_state = "playing"
         self.selected_index = 0
+        self.charging_throw = False
+        self.throw_power = 0.0
+        self.waiting_for_settle = False
         self.action_button = None
-        setup_level_dice(self.dice, self.current_level)
+        setup_level_dice(self.dice, self.current_level, self.floor_rect)
 
 
 def draw_floor_tiles(screen, tile_image):
@@ -159,31 +175,35 @@ def draw_hud(screen, font, score, tries_left, current_level):
     shadowed(tries_text, (WIDTH - tries_w - 24, 80))
 
 
-def spawn_roll_effect(roll_effects, floor_rect, color_variant, roll_state):
-    roll_effects[:] = [
-        roll_effect for roll_effect in roll_effects
-        if roll_effect["color_variant"] != color_variant
-    ]
-    roll_effects.append(create_roll_effect(floor_rect, color_variant, roll_state))
+def draw_power_bar(screen, font, power, charging):
+    bar_width = 260
+    bar_height = 22
+    bar_rect = pygame.Rect(24, 86, bar_width, bar_height)
+    fill_rect = bar_rect.copy()
+    fill_rect.width = round(bar_width * power)
+
+    pygame.draw.rect(screen, (35, 35, 48), bar_rect, border_radius=7)
+    if fill_rect.width > 0:
+        fill_color = (255, 205, 80) if charging else (120, 120, 145)
+        pygame.draw.rect(screen, fill_color, fill_rect, border_radius=7)
+    pygame.draw.rect(screen, (170, 170, 190), bar_rect, 2, border_radius=7)
+
+    label = "Throw power"
+    label_surface = font.render(label, True, HUD_COLOR)
+    screen.blit(label_surface, (bar_rect.x, bar_rect.y + bar_rect.height + 6))
 
 
-def setup_level_dice(dice, level):
+def setup_level_dice(dice, level, floor_rect):
     dice[:] = []
     for _ in range(LEVEL_DICE[level]):
-        add_die(dice)
-
-    if dice:
-        select_die(dice, 0)
+        add_die(dice, floor_rect)
+    select_die(dice, 0)
 
 
-def attempt_roll(die, roll_effects, floor_rect, tries_left):
-    if tries_left <= 0 or die["roll_state"]["active"]:
+def attempt_throw(die, dice, power, floor_rect, tries_left):
+    if tries_left <= 0 or die["moving"]:
         return tries_left
-
-    roll_state = start_die_roll(die)
-
-    if roll_state:
-        spawn_roll_effect(roll_effects, floor_rect, die["color_variant"], roll_state)
+    if throw_die(die, power, floor_rect, dice):
         return tries_left - 1
 
     return tries_left
@@ -340,8 +360,8 @@ def controls_screen(screen, clock, floor_tile, title_font, hud_font):
         clock.tick(60)
 
 
-def game_loop(screen, clock, floor_tile, title_font, hud_font, label_font, result_font, game_session):
-    floor_rect = get_floor_tile_grid_rect(floor_tile)
+def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game_session):
+    floor_rect = game_session.floor_rect
     faces = load_d10_faces()
 
     menu_button = pygame.Rect(24, 24, 120, 44)
@@ -374,33 +394,37 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, label_font, resul
 
             if game_session.game_state == "playing":
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                    if game_session.dice:
-                        game_session.tries_left = attempt_roll(
+                    if game_session.dice and game_session.tries_left > 0 and not any_die_moving(game_session.dice):
+                        game_session.charging_throw = True
+                        game_session.throw_power = 0.0
+
+                elif event.type == pygame.KEYUP and event.key == pygame.K_SPACE:
+                    if game_session.charging_throw and game_session.dice:
+                        game_session.tries_left = attempt_throw(
                             game_session.dice[game_session.selected_index],
-                            game_session.roll_effects,
+                            game_session.dice,
+                            game_session.throw_power,
                             floor_rect,
                             game_session.tries_left,
                         )
+                        game_session.waiting_for_settle = True
+                    game_session.charging_throw = False
+                    game_session.throw_power = 0.0
 
                 elif event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                     if game_session.tries_left > 0:
                         game_session.tries_left = 0
+                        game_session.charging_throw = False
 
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if game_session.tries_left > 0 and skip_button_rect.collidepoint(event.pos):
                         game_session.tries_left = 0
+                        game_session.charging_throw = False
                     else:
                         clicked_index = die_at_position(game_session.dice, event.pos)
-                        if clicked_index is not None:
+                        if clicked_index is not None and not any_die_moving(game_session.dice):
                             game_session.selected_index = clicked_index
                             select_die(game_session.dice, game_session.selected_index)
-
-                            game_session.tries_left = attempt_roll(
-                                game_session.dice[game_session.selected_index],
-                                game_session.roll_effects,
-                                floor_rect,
-                                game_session.tries_left,
-                            )
 
             elif game_session.game_state in ("level_complete", "won", "game_over"):
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -410,23 +434,31 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, label_font, resul
                         else:
                             game_session.reset()
 
-        for die in game_session.dice:
-            update_die_roll(die)
+        if game_session.charging_throw:
+            game_session.throw_power = min(
+                1.0,
+                game_session.throw_power + POWER_CHARGE_SPEED * (dt_ms / 1000.0),
+            )
 
-        update_roll_effects(game_session.roll_effects, dt_ms, floor_rect)
+        update_dice_physics(game_session.dice, dt_ms, floor_rect)
+
+        if game_session.waiting_for_settle and not any_die_moving(game_session.dice):
+            game_session.waiting_for_settle = False
+            if game_session.game_state == "playing" and game_session.tries_left > 0 and game_session.dice:
+                game_session.selected_index = (game_session.selected_index + 1) % len(game_session.dice)
+                select_die(game_session.dice, game_session.selected_index)
 
         score = sum(die["value"] for die in game_session.dice)
 
-        if game_session.game_state == "playing" and game_session.tries_left == 0:
-            if not any(die["roll_state"]["active"] for die in game_session.dice):
-                if score >= LEVELS[game_session.current_level]:
-                    game_session.game_state = (
-                        "won"
-                        if game_session.current_level == len(LEVELS) - 1
-                        else "level_complete"
-                    )
-                else:
-                    game_session.game_state = "game_over"
+        if game_session.game_state == "playing" and not any_die_moving(game_session.dice):
+            if score >= LEVELS[game_session.current_level]:
+                game_session.game_state = (
+                    "won"
+                    if game_session.current_level == len(LEVELS) - 1
+                    else "level_complete"
+                )
+            elif game_session.tries_left == 0:
+                game_session.game_state = "game_over"
 
         screen.fill(BACKGROUND_COLOR)
         draw_floor_tiles(screen, floor_tile)
@@ -437,8 +469,8 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, label_font, resul
         draw_button(screen, hud_font, menu_button, "MENU")
         draw_button(screen, hud_font, restart_button, "RESTART")
 
-        draw_dice(screen, faces, game_session.dice, label_font)
-        draw_roll_effects(screen, faces, game_session.roll_effects)
+        draw_dice(screen, faces, game_session.dice)
+        draw_dice_summary(screen, faces, game_session.dice, hud_font, floor_rect)
         draw_hud(
             screen,
             hud_font,
@@ -446,10 +478,16 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, label_font, resul
             game_session.tries_left,
             game_session.current_level,
         )
+        draw_power_bar(screen, hud_font, game_session.throw_power, game_session.charging_throw)
 
         if game_session.game_state == "playing":
             if game_session.tries_left > 0:
-                hint_text = "Click a die or press Space to roll. Press R to restart."
+                if any_die_moving(game_session.dice):
+                    hint_text = "Waiting for dice to stop..."
+                elif game_session.charging_throw:
+                    hint_text = "Release Space to throw."
+                else:
+                    hint_text = "Hold Space to charge, release to throw. Click a die to select. Press R to restart."
                 pygame.draw.rect(screen, (60, 60, 85), skip_button_rect, border_radius=8)
                 pygame.draw.rect(screen, (140, 140, 170), skip_button_rect, 2, border_radius=8)
 
@@ -497,12 +535,11 @@ def main():
     title_font = pygame.font.Font(None, 52)
     button_font = pygame.font.Font(None, 44)
     hud_font = pygame.font.Font(None, 32)
-    label_font = pygame.font.Font(None, 44)
     result_font = pygame.font.Font(None, 80)
 
     floor_tile = pygame.image.load(FLOOR_TILE_PATH).convert_alpha()
-
-    game_session = GameSession()
+    floor_rect = get_floor_tile_grid_rect(floor_tile)
+    game_session = GameSession(floor_rect)
 
     state = intro_screen(screen, clock, floor_tile, title_font, hud_font)
 
@@ -518,7 +555,6 @@ def main():
                 floor_tile,
                 title_font,
                 hud_font,
-                label_font,
                 result_font,
                 game_session,
             )
