@@ -1,6 +1,6 @@
 import pygame
 
-from d10_board import add_die, die_at_position, draw_dice, reset_dice_values, select_die, start_die_roll, update_die_roll
+from d10_board import add_die, die_at_position, draw_dice, select_die, start_die_roll, update_die_roll
 from d10_roll_effects import create_roll_effect, draw_roll_effects, update_roll_effects
 from d10_sprites import load_d10_faces
 
@@ -15,6 +15,7 @@ TITLE_COLOR = (240, 240, 245)
 HUD_COLOR = (245, 245, 245)
 HUD_SHADOW = (0, 0, 0)
 LEVELS = [5, 10, 15, 20, 30]
+LEVEL_DICE = [1, 2, 3, 4, 6]
 MAX_TRIES = 10
 
 
@@ -63,6 +64,13 @@ def draw_hud(screen, font, score, tries_left, current_level):
 def spawn_roll_effect(roll_effects, floor_rect, color_variant, roll_state):
     roll_effects[:] = [roll_effect for roll_effect in roll_effects if roll_effect["color_variant"] != color_variant]
     roll_effects.append(create_roll_effect(floor_rect, color_variant, roll_state))
+
+
+def setup_level_dice(dice, level):
+    dice[:] = []
+    for _ in range(LEVEL_DICE[level]):
+        add_die(dice)
+    select_die(dice, 0)
 
 
 def attempt_roll(die, roll_effects, floor_rect, tries_left):
@@ -135,19 +143,19 @@ def main():
     game_state = "playing"
     selected_index = 0
     action_button = None
-    add_die(dice)
+    skip_button_rect = pygame.Rect(WIDTH - 176, HEIGHT - 66, 152, 44)
+    setup_level_dice(dice, 0)
     running = True
 
     def full_reset():
-        nonlocal dice, roll_effects, tries_left, current_level, game_state, selected_index, action_button
-        dice = []
+        nonlocal roll_effects, tries_left, current_level, game_state, selected_index, action_button
         roll_effects = []
         tries_left = MAX_TRIES
         current_level = 0
         game_state = "playing"
         selected_index = 0
         action_button = None
-        add_die(dice)
+        setup_level_dice(dice, 0)
 
     while running:
         dt_ms = clock.tick(60)
@@ -157,19 +165,21 @@ def main():
                 running = False
 
             elif game_state == "playing":
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_a:
-                    if add_die(dice):
-                        selected_index = len(dice) - 1
-                        select_die(dice, selected_index)
-                elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                     if dice:
                         tries_left = attempt_roll(dice[selected_index], roll_effects, floor_rect, tries_left)
+                elif event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                    if tries_left > 0:
+                        tries_left = 0
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    clicked_index = die_at_position(dice, event.pos)
-                    if clicked_index is not None:
-                        selected_index = clicked_index
-                        select_die(dice, selected_index)
-                        tries_left = attempt_roll(dice[selected_index], roll_effects, floor_rect, tries_left)
+                    if tries_left > 0 and skip_button_rect.collidepoint(event.pos):
+                        tries_left = 0
+                    else:
+                        clicked_index = die_at_position(dice, event.pos)
+                        if clicked_index is not None:
+                            selected_index = clicked_index
+                            select_die(dice, selected_index)
+                            tries_left = attempt_roll(dice[selected_index], roll_effects, floor_rect, tries_left)
 
             elif game_state in ("level_complete", "won", "game_over"):
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -180,7 +190,8 @@ def main():
                             tries_left = MAX_TRIES
                             game_state = "playing"
                             action_button = None
-                            reset_dice_values(dice)
+                            selected_index = 0
+                            setup_level_dice(dice, current_level)
                         else:
                             full_reset()
 
@@ -208,7 +219,14 @@ def main():
 
         if game_state == "playing":
             if tries_left > 0:
-                hint_text = "Click a die or press Space to roll. Press A to add a die."
+                hint_text = "Click a die or press Space to roll."
+                pygame.draw.rect(screen, (60, 60, 85), skip_button_rect, border_radius=8)
+                pygame.draw.rect(screen, (140, 140, 170), skip_button_rect, 2, border_radius=8)
+                skip_label = hud_font.render("Skip Turns", True, HUD_COLOR)
+                screen.blit(skip_label, (
+                    skip_button_rect.x + (skip_button_rect.width - skip_label.get_width()) // 2,
+                    skip_button_rect.y + (skip_button_rect.height - skip_label.get_height()) // 2,
+                ))
             else:
                 hint_text = "Waiting for rolls to finish..."
             hint_surface = hud_font.render(hint_text, True, (200, 200, 210))
