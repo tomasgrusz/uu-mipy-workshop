@@ -19,6 +19,7 @@ from d10_board import (
     update_dice_physics,
 )
 from d10_score import calculate_score
+from d10_score_formula import draw_score_formula
 from d10_sprites import load_d10_faces
 
 
@@ -620,7 +621,18 @@ def scoring_screen(screen, clock, floor_tile, title_font, hud_font):
         clock.tick(60)
 
 
-def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game_session, qr_code, end_gifs):
+def game_loop(
+    screen,
+    clock,
+    floor_tile,
+    title_font,
+    hud_font,
+    formula_font,
+    result_font,
+    game_session,
+    qr_code,
+    end_gifs,
+):
     floor_rect = game_session.floor_rect
     faces = load_d10_faces()
     shout_meter = ShoutMeter(SHOUT_VOLUME_THRESHOLD)
@@ -709,9 +721,6 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game
 
         if game_session.waiting_for_settle and not any_die_moving(game_session.dice):
             game_session.waiting_for_settle = False
-            if game_session.game_state == "playing" and game_session.tries_left > 0 and game_session.dice:
-                game_session.selected_index = (game_session.selected_index + 1) % len(game_session.dice)
-                select_die(game_session.dice, game_session.selected_index)
 
         score = calculate_score([die["value"] for die in game_session.dice])
 
@@ -749,6 +758,7 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game
             game_session.tries_left,
             game_session.current_level,
         )
+        draw_score_formula(screen, faces, formula_font, game_session.dice)
         draw_power_bar(screen, hud_font, game_session.throw_power, game_session.charging_throw)
 
         if game_session.game_state == "playing":
@@ -798,6 +808,7 @@ def main():
     title_font = pygame.font.Font(None, 52)
     button_font = pygame.font.Font(None, 44)
     hud_font = pygame.font.Font(None, 32)
+    formula_font = pygame.font.Font(None, 24)
     result_font = pygame.font.Font(None, 80)
 
     floor_tile = pygame.image.load(FLOOR_TILE_PATH).convert_alpha()
@@ -826,6 +837,7 @@ def main():
                 floor_tile,
                 title_font,
                 hud_font,
+                formula_font,
                 result_font,
                 game_session,
                 qr_code,
