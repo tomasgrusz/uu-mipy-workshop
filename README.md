@@ -197,9 +197,11 @@ To verify your Pygame installation:
 python -m pygame.tests
 ```
 
-## Contributors
+## 💻 Contributors
 
-- Bc. Tomáš Grusz (@tomasgrusz)
-- Bc. Kristian Kolumber (@kolumber23)
-- Bc. Apolena Kučerová (@apikucerova-kickass)
-- Bc. Tomáš Pour (@pourik20)
+This game was developed by a team of four as part of a workshop at Unicorn University. The team members are:
+
+- Bc. Tomáš Grusz ([@tomasgrusz](https://github.com/tomasgrusz))
+- Bc. Kristian Kolumber ([@kolumber23](https://github.com/kolumber23))
+- Bc. Apolena Kučerová ([@apikucerova-kickass](https://github.com/apikucerova-kickass))
+- Bc. Tomáš Pour ([@pourik20](https://github.com/pourik20))

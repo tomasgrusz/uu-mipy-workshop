@@ -197,9 +197,11 @@ Ověření instalace Pygame:
 python -m pygame.tests
 ```
 
-## Kontributoři
+## 💻 Kontributoři
 
-- Bc. Tomáš Grusz (@tomasgrusz)
-- Bc. Kristian Kolumber (@kolumber23)
-- Bc. Apolena Kučerová (@apikucerova-kickass)
-- Bc. Tomáš Pour (@pourik20)
+Tuto hru vyvinul tým čtyř v rámci workshopu na Unicorn University. Členové týmu jsou:
+
+- Bc. Tomáš Grusz ([@tomasgrusz](https://github.com/tomasgrusz))
+- Bc. Kristian Kolumber ([@kolumber23](https://github.com/kolumber23))
+- Bc. Apolena Kučerová ([@apikucerova-kickass](https://github.com/apikucerova-kickass))
+- Bc. Tomáš Pour ([@pourik20](https://github.com/pourik20))
