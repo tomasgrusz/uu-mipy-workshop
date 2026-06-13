@@ -10,7 +10,7 @@ from d10_sprites import ROWS, get_face, scale_face
 WIDTH = 960
 HEIGHT = 720
 GRID_COLUMNS = 3
-MAX_DICE = 6
+MAX_DICE = 10
 DIE_SIZE = 64
 GRID_GAP = 8
 GRID_LEFT_MARGIN = 20
