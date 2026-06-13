@@ -248,6 +248,8 @@ def draw_end_screen(
 
     if game_state == "game_over":
         draw_end_gif(screen, end_gifs["rage_quit"], ((WIDTH - END_SCREEN_GIF_SIZE[0]) // 2, 78))
+    elif game_state == "won":
+        draw_end_gif(screen, end_gifs["win_screen"], ((WIDTH - END_SCREEN_GIF_SIZE[0]) // 2, 78))
 
     goal = LEVELS[current_level]
     score_text = f"Score: {score}  |  Required: {goal}+"

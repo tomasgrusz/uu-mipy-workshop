@@ -4,6 +4,7 @@ BACKGROUND_COLOR = (24, 24, 32)
 FLOOR_TILE_PATH = "sprites/floor-tile.png"
 QR_CODE_PATH = "sprites/qr.png"
 RAGE_QUIT_GIF_PATH = "sprites/rage_quit.gif"
+WIN_SCREEN_GIF_PATH = "sprites/win_screen.gif"
 QR_CODE_SIZE = 132
 END_SCREEN_GIF_SIZE = (300, 169)
 FLOOR_TILE_COLUMNS = 28

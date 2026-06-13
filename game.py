@@ -17,6 +17,7 @@ from d10_sprites import load_d10_faces
 from settings import (
     BACKGROUND_COLOR,
     HEIGHT,
+    END_SCREEN_GIF_SIZE,
     LEVEL_DICE,
     LEVELS,
     MAX_TRIES,
@@ -26,12 +27,14 @@ from settings import (
     THROW_POWER_MODE,
     TITLE_COLOR,
     WIDTH,
+    WIN_SCREEN_GIF_PATH,
 )
 from ui import (
     draw_button,
     draw_end_screen,
     draw_floor_tiles,
     draw_hud,
+    load_animated_gif,
     draw_power_bar,
 )
 
@@ -217,6 +220,13 @@ def game_loop(
                     if game_session.current_level == len(LEVELS) - 1
                     else "level_complete"
                 )
+                if next_state == "won":
+                    if "win_screen" not in end_gifs:
+                        end_gifs["win_screen"] = load_animated_gif(
+                            WIN_SCREEN_GIF_PATH,
+                            END_SCREEN_GIF_SIZE,
+                        )
+                    end_gifs["win_screen"].restart()
                 game_session.game_state = next_state
             elif game_session.tries_left == 0:
                 end_gifs["rage_quit"].restart()
