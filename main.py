@@ -112,7 +112,7 @@ class ShoutMeter:
 
     def start(self):
         if sd is None:
-            self.error = "Mikrofon není dostupný: chybí knihovna sounddevice."
+            self.error = "Mic unavailable - hold Space to charge."
             return
 
         try:
@@ -126,7 +126,7 @@ class ShoutMeter:
             self.stream.start()
             self.available = True
         except Exception:
-            self.error = "Mikrofon není dostupný nebo není povolený."
+            self.error = "Mic unavailable - hold Space to charge."
             self.available = False
 
     def stop(self):
@@ -298,9 +298,9 @@ def draw_shout_bar(screen, font, shout_meter, y):
     pygame.draw.rect(screen, (170, 170, 190), bar_rect, 2, border_radius=7)
 
     if shout_meter.available:
-        label = "Hlasitost křiku"
+        label = "Scream volume"
     else:
-        label = shout_meter.error or "Mikrofon není dostupný."
+        label = shout_meter.error or "Mic unavailable - hold Space to charge."
 
     label_surface = font.render(label, True, HUD_COLOR)
     screen.blit(label_surface, ((WIDTH - label_surface.get_width()) // 2, y + bar_height + 7))
@@ -323,7 +323,7 @@ def attempt_throw(die, dice, power, floor_rect, tries_left):
 
 
 def update_throw_power(current_power, dt_ms, shout_meter):
-    if THROW_POWER_MODE == "shout":
+    if THROW_POWER_MODE == "shout" and shout_meter.available:
         return max(current_power, shout_meter.power_ratio())
 
     return min(1.0, current_power + POWER_CHARGE_SPEED * (dt_ms / 1000.0))
@@ -358,8 +358,8 @@ def draw_end_screen(screen, result_font, hud_font, score, game_state, current_le
     button_y = HEIGHT // 2 + 40
     if game_state == "game_over":
         payment_lines = [
-            "Vyčerpal jsi bezplatné pokusy.",
-            "Naskenuj QR kód, nebo hodně zakřič pro jeden pokus navíc.",
+            "You have used all free tries.",
+            "Scan the QR code, or scream loud enough for one extra try.",
         ]
         for i, line in enumerate(payment_lines):
             payment_surface = hud_font.render(line, True, HUD_COLOR)
@@ -404,8 +404,8 @@ def intro_screen(screen, clock, floor_tile, title_font, hud_font):
         panel = pygame.Rect(230, 235, 500, 210)
         draw_transparent_panel(screen, panel, alpha=175)
 
-        title = title_font.render("D10 DICE ROLLER", True, WHITE)
-        subtitle = hud_font.render("Roll. Score. Win.", True, LIGHT_GRAY)
+        title = title_font.render("DIE SCREAMING!", True, WHITE)
+        subtitle = hud_font.render("Scream. Score. Win.", True, LIGHT_GRAY)
 
         screen.blit(title, ((WIDTH - title.get_width()) // 2, 285))
         screen.blit(subtitle, ((WIDTH - subtitle.get_width()) // 2, 360))
@@ -417,8 +417,9 @@ def intro_screen(screen, clock, floor_tile, title_font, hud_font):
 
 
 def menu_screen(screen, clock, floor_tile, title_font, button_font, hud_font):
-    play_button = pygame.Rect(330, 290, 300, 76)
-    controls_button = pygame.Rect(330, 400, 300, 76)
+    play_button = pygame.Rect(330, 270, 300, 68)
+    controls_button = pygame.Rect(330, 360, 300, 68)
+    scoring_button = pygame.Rect(330, 450, 300, 68)
 
     while True:
         for event in pygame.event.get():
@@ -430,6 +431,8 @@ def menu_screen(screen, clock, floor_tile, title_font, button_font, hud_font):
                     return "game"
                 if controls_button.collidepoint(event.pos):
                     return "controls"
+                if scoring_button.collidepoint(event.pos):
+                    return "scoring"
 
         screen.fill(BACKGROUND_COLOR)
         draw_floor_tiles(screen, floor_tile)
@@ -440,14 +443,15 @@ def menu_screen(screen, clock, floor_tile, title_font, button_font, hud_font):
         panel = pygame.Rect(240, 105, 480, 455)
         draw_transparent_panel(screen, panel, alpha=175)
 
-        title = title_font.render("D10 DICE ROLLER", True, WHITE)
+        title = title_font.render("DIE SCREAMING!", True, WHITE)
         subtitle = hud_font.render("Multilevel dice score game", True, LIGHT_GRAY)
 
         screen.blit(title, ((WIDTH - title.get_width()) // 2, 145))
         screen.blit(subtitle, ((WIDTH - subtitle.get_width()) // 2, 215))
 
-        draw_button(screen, button_font, play_button, "HRÁT")
-        draw_button(screen, button_font, controls_button, "OVLÁDÁNÍ")
+        draw_button(screen, button_font, play_button, "PLAY")
+        draw_button(screen, button_font, controls_button, "CONTROLS")
+        draw_button(screen, button_font, scoring_button, "SCORING")
 
         pygame.display.flip()
         clock.tick(60)
@@ -474,24 +478,70 @@ def controls_screen(screen, clock, floor_tile, title_font, hud_font):
 
         back_button = draw_back_button(screen, enabled=True)
 
-        title = title_font.render("OVLÁDÁNÍ", True, WHITE)
+        title = title_font.render("CONTROLS", True, WHITE)
         screen.blit(title, ((WIDTH - title.get_width()) // 2, 105))
 
         panel = pygame.Rect(135, 215, 690, 370)
         draw_transparent_panel(screen, panel, alpha=205)
 
         lines = [
-            "Kliknutí na kostku - výběr a hod kostkou",
-            "SPACE - hod vybranou kostkou",
-            "ENTER - přeskočení zbývajících pokusů",
-            "R - restart hry",
-            "ESC nebo šipka vlevo nahoře - zpět do menu",
-            "Cíl hry: dosáhnout požadovaného skóre v každém levelu",
+            "Click a die - select it",
+            "Hold SPACE and scream - charge throw power",
+            "Release SPACE - throw the selected die",
+            "ENTER - skip the remaining tries",
+            "R - restart the game",
+            "ESC or the top-left arrow - return to menu",
+            "Goal: reach the required score in every level",
         ]
 
         for i, line in enumerate(lines):
             text = hud_font.render(line, True, WHITE)
             screen.blit(text, (180, 270 + i * 48))
+
+        pygame.display.flip()
+        clock.tick(60)
+
+
+def scoring_screen(screen, clock, floor_tile, title_font, hud_font):
+    back_button = pygame.Rect(24, 24, 70, 58)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return "quit"
+
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if back_button.collidepoint(event.pos):
+                    return "menu"
+
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                return "menu"
+
+        screen.fill(BACKGROUND_COLOR)
+        draw_floor_tiles(screen, floor_tile)
+        draw_menu_overlay(screen)
+
+        back_button = draw_back_button(screen, enabled=True)
+
+        title = title_font.render("SCORING", True, WHITE)
+        screen.blit(title, ((WIDTH - title.get_width()) // 2, 105))
+
+        panel = pygame.Rect(115, 190, 730, 420)
+        draw_transparent_panel(screen, panel, alpha=205)
+
+        lines = [
+            "Each die has a value from 0 to 9.",
+            "Single die: adds its face value.",
+            "Pair or more: value x number of dice x number of dice.",
+            "Example: three 7s score 7 x 3 x 3 = 63 points.",
+            "Straight: 3 or more consecutive unique values score sum x 10.",
+            "Example: 2, 3, 4, 5 score (2 + 3 + 4 + 5) x 10 = 140.",
+            "Dice used in a straight do not also score as singles.",
+        ]
+
+        for i, line in enumerate(lines):
+            text = hud_font.render(line, True, WHITE)
+            screen.blit(text, (150, 245 + i * 45))
 
         pygame.display.flip()
         clock.tick(60)
@@ -608,7 +658,7 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game
         screen.fill(BACKGROUND_COLOR)
         draw_floor_tiles(screen, floor_tile)
 
-        title_surface = title_font.render("D10 Dice Roller", True, TITLE_COLOR)
+        title_surface = title_font.render("DIE SCREAMING!", True, TITLE_COLOR)
         screen.blit(title_surface, (330, 18))
 
         draw_button(screen, hud_font, menu_button, "MENU")
@@ -631,9 +681,9 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game
                 if any_die_moving(game_session.dice):
                     hint_text = "Waiting for dice to stop..."
                 elif game_session.charging_throw:
-                    hint_text = "Release Space to throw."
+                    hint_text = "Keep holding Space and scream to charge. Release Space to throw."
                 else:
-                    hint_text = "Hold Space to charge, release to throw. Click a die to select. Press R to restart."
+                    hint_text = "Hold Space, scream to charge, release to throw. Click a die to select."
             else:
                 hint_text = "Waiting for rolls to finish..."
 
@@ -665,7 +715,7 @@ def main():
     pygame.init()
 
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("D10 Dice Roller")
+    pygame.display.set_caption("DIE SCREAMING!")
 
     clock = pygame.time.Clock()
 
@@ -687,6 +737,8 @@ def main():
             state = menu_screen(screen, clock, floor_tile, title_font, button_font, hud_font)
         elif state == "controls":
             state = controls_screen(screen, clock, floor_tile, title_font, hud_font)
+        elif state == "scoring":
+            state = scoring_screen(screen, clock, floor_tile, title_font, hud_font)
         elif state == "game":
             state = game_loop(
                 screen,
