@@ -10,6 +10,7 @@ from d10_board import (
     throw_die,
     update_dice_physics,
 )
+from d10_score import calculate_score
 from d10_sprites import load_d10_faces
 
 
@@ -369,7 +370,7 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game
     while True:
         dt_ms = clock.tick(60)
 
-        score = sum(die["value"] for die in game_session.dice)
+        score = calculate_score([die["value"] for die in game_session.dice])
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -442,7 +443,7 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game
                 game_session.selected_index = (game_session.selected_index + 1) % len(game_session.dice)
                 select_die(game_session.dice, game_session.selected_index)
 
-        score = sum(die["value"] for die in game_session.dice)
+        score = calculate_score([die["value"] for die in game_session.dice])
 
         if game_session.game_state == "playing" and not any_die_moving(game_session.dice):
             if score >= LEVELS[game_session.current_level]:
