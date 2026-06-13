@@ -27,7 +27,10 @@ HEIGHT = 720
 BACKGROUND_COLOR = (24, 24, 32)
 FLOOR_TILE_PATH = "sprites/floor-tile.png"
 QR_CODE_PATH = "sprites/qr.png"
+WIN_SCREEN_GIF_PATH = "sprites/win_screen.gif"
+RAGE_QUIT_GIF_PATH = "sprites/rage_quit.gif"
 QR_CODE_SIZE = 132
+END_SCREEN_GIF_SIZE = (300, 169)
 FLOOR_TILE_COLUMNS = 28
 FLOOR_TILE_ROWS = 12
 
@@ -164,6 +167,58 @@ class ShoutMeter:
 
     def power_ratio(self):
         return min(1.0, self.volume / self.threshold)
+
+
+class AnimatedGif:
+    def __init__(self, frames, durations):
+        self.frames = frames
+        self.durations = durations
+        self.total_duration = sum(durations)
+        self.started_at = pygame.time.get_ticks()
+
+    def restart(self):
+        self.started_at = pygame.time.get_ticks()
+
+    def get_current_frame(self):
+        if len(self.frames) == 1 or self.total_duration <= 0:
+            return self.frames[0]
+
+        elapsed = (pygame.time.get_ticks() - self.started_at) % self.total_duration
+        for frame, duration in zip(self.frames, self.durations):
+            if elapsed < duration:
+                return frame
+            elapsed -= duration
+
+        return self.frames[-1]
+
+
+def load_animated_gif(path, size):
+    try:
+        from PIL import Image, ImageSequence
+    except ImportError as exc:
+        raise RuntimeError(
+            "Animated GIFs require Pillow. Install dependencies with `pip install -r requirements.txt`."
+        ) from exc
+
+    frames = []
+    durations = []
+    with Image.open(path) as gif:
+        for gif_frame in ImageSequence.Iterator(gif):
+            rgba_frame = gif_frame.convert("RGBA")
+            frame = pygame.image.fromstring(
+                rgba_frame.tobytes(),
+                rgba_frame.size,
+                "RGBA",
+            ).convert_alpha()
+            frames.append(pygame.transform.smoothscale(frame, size))
+            durations.append(max(20, gif_frame.info.get("duration", 80)))
+
+    if not frames:
+        image = pygame.image.load(path).convert_alpha()
+        frames.append(pygame.transform.smoothscale(image, size))
+        durations.append(1000)
+
+    return AnimatedGif(frames, durations)
 
 
 def draw_floor_tiles(screen, tile_image):
@@ -329,7 +384,22 @@ def update_throw_power(current_power, dt_ms, shout_meter):
     return min(1.0, current_power + POWER_CHARGE_SPEED * (dt_ms / 1000.0))
 
 
-def draw_end_screen(screen, result_font, hud_font, score, game_state, current_level, shout_meter, qr_code):
+def draw_end_gif(screen, animation, position):
+    frame = animation.get_current_frame()
+    screen.blit(frame, position)
+
+
+def draw_end_screen(
+    screen,
+    result_font,
+    hud_font,
+    score,
+    game_state,
+    current_level,
+    shout_meter,
+    qr_code,
+    end_gifs,
+):
     overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 170))
     screen.blit(overlay, (0, 0))
@@ -350,6 +420,9 @@ def draw_end_screen(screen, result_font, hud_font, score, game_state, current_le
     result_surface = result_font.render(result_text, True, result_color)
     screen.blit(result_surface, ((WIDTH - result_surface.get_width()) // 2, HEIGHT // 2 - 90))
 
+    if game_state == "game_over":
+        draw_end_gif(screen, end_gifs["rage_quit"], ((WIDTH - END_SCREEN_GIF_SIZE[0]) // 2, 78))
+
     goal = LEVELS[current_level]
     score_text = f"Score: {score}  |  Required: {goal}+"
     score_surface = hud_font.render(score_text, True, HUD_COLOR)
@@ -359,7 +432,7 @@ def draw_end_screen(screen, result_font, hud_font, score, game_state, current_le
     if game_state == "game_over":
         payment_lines = [
             "You have used all free tries.",
-            "Scan the QR code, or scream loud enough for one extra try.",
+            "Scan the QR code, or scream loud enough for extra tries.",
         ]
         for i, line in enumerate(payment_lines):
             payment_surface = hud_font.render(line, True, HUD_COLOR)
@@ -547,7 +620,7 @@ def scoring_screen(screen, clock, floor_tile, title_font, hud_font):
         clock.tick(60)
 
 
-def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game_session, qr_code):
+def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game_session, qr_code, end_gifs):
     floor_rect = game_session.floor_rect
     faces = load_d10_faces()
     shout_meter = ShoutMeter(SHOUT_VOLUME_THRESHOLD)
@@ -644,12 +717,14 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game
 
         if game_session.game_state == "playing" and not any_die_moving(game_session.dice):
             if score >= LEVELS[game_session.current_level]:
-                game_session.game_state = (
+                next_state = (
                     "won"
                     if game_session.current_level == len(LEVELS) - 1
                     else "level_complete"
                 )
+                game_session.game_state = next_state
             elif game_session.tries_left == 0:
+                end_gifs["rage_quit"].restart()
                 game_session.game_state = "game_over"
 
         if game_session.game_state == "game_over" and shout_meter.consume_shout():
@@ -706,6 +781,7 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game
                 game_session.current_level,
                 shout_meter,
                 qr_code,
+                end_gifs,
             )
 
         pygame.display.flip()
@@ -727,6 +803,10 @@ def main():
     floor_tile = pygame.image.load(FLOOR_TILE_PATH).convert_alpha()
     qr_code = pygame.image.load(QR_CODE_PATH).convert()
     qr_code = pygame.transform.scale(qr_code, (QR_CODE_SIZE, QR_CODE_SIZE))
+    end_gifs = {
+        "win": load_animated_gif(WIN_SCREEN_GIF_PATH, END_SCREEN_GIF_SIZE),
+        "rage_quit": load_animated_gif(RAGE_QUIT_GIF_PATH, END_SCREEN_GIF_SIZE),
+    }
     floor_rect = get_floor_tile_grid_rect(floor_tile)
     game_session = GameSession(floor_rect)
 
@@ -749,6 +829,7 @@ def main():
                 result_font,
                 game_session,
                 qr_code,
+                end_gifs,
             )
         else:
             state = "menu"
