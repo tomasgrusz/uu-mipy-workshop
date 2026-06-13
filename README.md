@@ -33,7 +33,7 @@ d10_sprites.py       # Sprite sheet loading and face extraction
 
 sprites/
   d10-rainbow.png    # 10×10 sprite sheet: 10 color variants × 10 faces (0–9)
-  floor-tile.png     # Repeating floor tile (20 columns × 10 rows)
+  floor-tile.png     # Repeating floor tile (22 columns × 12 rows)
 
 docs/
   Pygame2026_workshop_final.pdf   # Workshop slides (Karel Šafr, Ph.D.)

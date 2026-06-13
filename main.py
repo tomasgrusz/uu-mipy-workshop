@@ -17,8 +17,8 @@ WIDTH = 960
 HEIGHT = 720
 BACKGROUND_COLOR = (24, 24, 32)
 FLOOR_TILE_PATH = "sprites/floor-tile.png"
-FLOOR_TILE_COLUMNS = 20
-FLOOR_TILE_ROWS = 10
+FLOOR_TILE_COLUMNS = 28
+FLOOR_TILE_ROWS = 12
 
 TITLE_COLOR = (240, 240, 245)
 HUD_COLOR = (245, 245, 245)
@@ -366,8 +366,6 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game
 
     menu_button = pygame.Rect(24, 24, 120, 44)
     restart_button = pygame.Rect(160, 24, 145, 44)
-    skip_button_rect = pygame.Rect(WIDTH - 176, HEIGHT - 66, 152, 44)
-
     while True:
         dt_ms = clock.tick(60)
 
@@ -417,14 +415,10 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game
                         game_session.charging_throw = False
 
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if game_session.tries_left > 0 and skip_button_rect.collidepoint(event.pos):
-                        game_session.tries_left = 0
-                        game_session.charging_throw = False
-                    else:
-                        clicked_index = die_at_position(game_session.dice, event.pos)
-                        if clicked_index is not None and not any_die_moving(game_session.dice):
-                            game_session.selected_index = clicked_index
-                            select_die(game_session.dice, game_session.selected_index)
+                    clicked_index = die_at_position(game_session.dice, event.pos)
+                    if clicked_index is not None and not any_die_moving(game_session.dice):
+                        game_session.selected_index = clicked_index
+                        select_die(game_session.dice, game_session.selected_index)
 
             elif game_session.game_state in ("level_complete", "won", "game_over"):
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -488,17 +482,6 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game
                     hint_text = "Release Space to throw."
                 else:
                     hint_text = "Hold Space to charge, release to throw. Click a die to select. Press R to restart."
-                pygame.draw.rect(screen, (60, 60, 85), skip_button_rect, border_radius=8)
-                pygame.draw.rect(screen, (140, 140, 170), skip_button_rect, 2, border_radius=8)
-
-                skip_label = hud_font.render("Skip Turns", True, HUD_COLOR)
-                screen.blit(
-                    skip_label,
-                    (
-                        skip_button_rect.x + (skip_button_rect.width - skip_label.get_width()) // 2,
-                        skip_button_rect.y + (skip_button_rect.height - skip_label.get_height()) // 2,
-                    ),
-                )
             else:
                 hint_text = "Waiting for rolls to finish..."
 

@@ -4,7 +4,7 @@ import random
 import pygame
 
 from d10_roll import create_idle_roll_state, get_roll_face, start_roll
-from d10_sprites import get_face, scale_face
+from d10_sprites import ROWS, get_face, scale_face
 
 
 WIDTH = 960
@@ -17,8 +17,8 @@ GRID_LEFT_MARGIN = 20
 GRID_BOTTOM_MARGIN = 20
 LABEL_COLOR = (255, 255, 255)
 SUMMARY_SELECTED_COLOR = (255, 230, 140)
-MIN_THROW_SPEED = 260
-MAX_THROW_SPEED = 1120
+MIN_THROW_SPEED = 10
+MAX_THROW_SPEED = 700
 FRICTION = 0.988
 WALL_BOUNCE = 0.72
 DIE_BOUNCE = 0.86
@@ -51,6 +51,8 @@ def create_die(color_variant, selected=False):
         "spin_velocity": 0.0,
         "moving": False,
         "value_timer_ms": 0,
+        "roll_sequence": list(range(ROWS)),
+        "roll_sequence_index": 0,
         "value": 0,
         "color_variant": color_variant,
         "roll_state": create_idle_roll_state(),
@@ -204,6 +206,9 @@ def throw_die(die, power, floor_rect, dice=None):
     die["spin_velocity"] = random.choice([-1, 1]) * speed * random.uniform(2.2, 3.2)
     die["moving"] = True
     die["value_timer_ms"] = 0
+    die["roll_sequence"] = random.sample(range(ROWS), ROWS)
+    die["roll_sequence_index"] = 1
+    die["value"] = die["roll_sequence"][0]
     return True
 
 
@@ -286,7 +291,10 @@ def update_die_motion(die, dt_ms, floor_rect):
 
     die["value_timer_ms"] += dt_ms
     while die["value_timer_ms"] >= VALUE_CHANGE_INTERVAL_MS:
-        die["value"] = (die["value"] + 1) % 10
+        roll_sequence = die.get("roll_sequence") or list(range(ROWS))
+        sequence_index = die.get("roll_sequence_index", 0) % len(roll_sequence)
+        die["value"] = roll_sequence[sequence_index]
+        die["roll_sequence_index"] = (sequence_index + 1) % len(roll_sequence)
         die["value_timer_ms"] -= VALUE_CHANGE_INTERVAL_MS
 
     if math.hypot(die["vx"], die["vy"]) < STOP_SPEED:
@@ -356,6 +364,9 @@ def update_dice_physics(dice, dt_ms, floor_rect):
             clamp_die_to_floor(dice[second_index], floor_rect)
             sync_die_rect(dice[first_index])
             sync_die_rect(dice[second_index])
+
+    for die in dice:
+        clamp_die_to_floor(die, floor_rect)
 
 
 def any_die_moving(dice):
