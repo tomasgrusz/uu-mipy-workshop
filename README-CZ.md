@@ -1,14 +1,12 @@
-# DIE SCREAMING!
-
-**Tým:** Bc. Apolena Kučerová, Bc. Tomáš Pour, Bc. Kristian Kolumber, Bc. Tomáš Grusz  
-**Datum:** 13. 6. 2026  
-**Technologie:** Python 3.12, Pygame 2.6, sounddevice 0.5
+# 🎲🪦 DIE SCREAMING!
 
 DIE SCREAMING! je 2D stolní hra s desetistěnnými kostkami (D10) běžící v okně 960 × 720 px při 60 FPS. Hráč prochází 7 levely a v každém musí dosáhnout požadovaného skóre (5 / 10 / 25 / 50 / 100 / 250 / 500 bodů) v maximálně 10 hodech. Hráč nabíjí sílu hodu přidržením mezerníku a křikem do mikrofonu. Při game over lze získat jeden extra pokus dalším křikem nebo naskenováním QR kódu.
 
+![Gameplay](/docs/gameplay2.png)
+
 ---
 
-## Jak se hraje
+## 🕹 ️Jak se hraje
 
 Na začátku každého levelu máš **10 pokusů** a sadu kostek rozmístěných na podlaze. Tvojím cílem je dosáhnout požadovaného skóre dříve, než pokusy dojdou.
 
@@ -21,6 +19,8 @@ Na začátku každého levelu máš **10 pokusů** a sadu kostek rozmístěných
 Po každém hodu se kostky fyzicky odrážejí od stěn i od sebe. Hodnoty kostek se uzamknou po zastavení. Skóre se aktualizuje živě.
 
 Pokud dosáhneš požadovaného skóre před vypotřebováním pokusů, postoupíš do dalšího levelu. Pokud ne, nastane **Game Over** — jeden extra pokus ale můžeš získat dalším křikem na obrazovce game over.
+
+![Gameplay 2](/docs/gameplay.png)
 
 ### Levely
 
@@ -36,7 +36,7 @@ Pokud dosáhneš požadovaného skóre před vypotřebováním pokusů, postoup�
 
 ---
 
-## Ovládání
+## 🎮 Ovládání
 
 | Vstup                               | Akce                     |
 | ----------------------------------- | ------------------------ |
@@ -49,7 +49,7 @@ Pokud dosáhneš požadovaného skóre před vypotřebováním pokusů, postoup�
 
 ---
 
-## Výpočet skóre
+## 📊 Výpočet skóre
 
 Skóre je **aktuální součet všech kostek na ploše** — minulé hody se nesčítají; každá kostka přispívá jednou svojí aktuální hodnotou. Vzorec je zobrazován živě jako rozpad na skupiny.
 
@@ -89,9 +89,11 @@ Pravidla se kombinují. Plocha s kostkami `2, 3, 4, 7, 7, 9` boduje:
 - Osamělá `9`: `9`
 - **Celkem: 127**
 
+![Score breakdown](/docs/score-calculation.png)
+
 ---
 
-## Sprity
+## 🖼 ️Sprity
 
 ### D10 sprite sheet
 
@@ -107,7 +109,7 @@ Pravidla se kombinují. Plocha s kostkami `2, 3, 4, 7, 7, 9` boduje:
 
 ---
 
-## Struktura projektu
+## 🏗 Struktura projektu
 
 ```
 main.py               # Vstupní bod: inicializace, načtení assetů, stavový automat
@@ -136,7 +138,7 @@ docs/
 
 ---
 
-## Klíčové moduly
+## 🧠 Klíčové moduly
 
 ### `d10_dice.py` — fyzika a kostky
 
@@ -169,9 +171,11 @@ Zavolá `score_breakdown()` a vykreslí ikonky kostek (se správnou barevnou var
 
 ---
 
-## Spuštění
+## 🛠 Spuštění
 
 **Požadavky:** Python 3.9+, mikrofon (volitelný — bez mikrofonu se síla hodu nabíjí časem)
+
+**Technologie:** Python 3.12, Pygame 2.6, sounddevice 0.5
 
 ```bash
 # Vytvoř a aktivuj virtuální prostředí
@@ -192,3 +196,10 @@ Ověření instalace Pygame:
 ```bash
 python -m pygame.tests
 ```
+
+## Kontributoři
+
+- Bc. Tomáš Grusz (@tomasgrusz)
+- Bc. Kristian Kolumber (@kolumber23)
+- Bc. Apolena Kučerová (@apikucerova-kickass)
+- Bc. Tomáš Pour (@pourik20)

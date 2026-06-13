@@ -1,14 +1,12 @@
-# DIE SCREAMING!
-
-**Team:** Bc. Apolena Kučerová, Bc. Tomáš Pour, Bc. Kristian Kolumber, Bc. Tomáš Grusz  
-**Date:** 13 June 2026  
-**Technology:** Python 3.12, Pygame 2.6, sounddevice 0.5
+# 🎲🪦 DIE SCREAMING!
 
 DIE SCREAMING! is a 2D tabletop game with ten-sided dice (D10) running in a 960 × 720 px window at 60 FPS. The player progresses through 7 levels, each requiring a target score (5 / 10 / 25 / 50 / 100 / 250 / 500 points) within a maximum of 10 throws. Throw power is charged by holding Space and screaming into the microphone. On Game Over, one extra try can be earned by screaming again or scanning the QR code.
 
+![Gameplay](/docs/gameplay2.png)
+
 ---
 
-## Gameplay
+## 🕹 ️Gameplay
 
 You start each level with **10 tries** and a set of dice placed on the floor. Your goal is to reach the required score before you run out of tries.
 
@@ -21,6 +19,8 @@ You start each level with **10 tries** and a set of dice placed on the floor. Yo
 After every throw, dice bounce off walls and each other using real physics. Dice values are locked once they stop moving. The score updates live as values settle.
 
 If you reach the required score before running out of tries, you advance to the next level. Fail and you get a **Game Over** — but you can earn one extra try by screaming loud enough at the Game Over screen.
+
+![Gameplay 2](/docs/gameplay.png)
 
 ### Levels
 
@@ -36,7 +36,7 @@ If you reach the required score before running out of tries, you advance to the 
 
 ---
 
-## Controls
+## 🎮 Controls
 
 | Input                 | Action                 |
 | --------------------- | ---------------------- |
@@ -49,7 +49,7 @@ If you reach the required score before running out of tries, you advance to the 
 
 ---
 
-## Score calculation
+## 📊 Score calculation
 
 The score is the **current sum of all dice on the board** — past throws don't accumulate; each die contributes exactly once based on its current face value. The formula is shown live on screen as a breakdown.
 
@@ -89,9 +89,11 @@ These rules combine. A board showing `2, 3, 4, 7, 7, 9` scores:
 - `9` single: `9`
 - **Total: 127**
 
+![Score breakdown](/docs/score-calculation.png)
+
 ---
 
-## Sprites
+## 🖼 ️Sprites
 
 ### D10 sprite sheet
 
@@ -107,7 +109,7 @@ These rules combine. A board showing `2, 3, 4, 7, 7, 9` scores:
 
 ---
 
-## Project structure
+## 🏗 ️Project structure
 
 ```
 main.py               # Entry point — init, asset loading, screen router
@@ -136,7 +138,7 @@ docs/
 
 ---
 
-## Key modules
+## 🧠 Key modules
 
 ### `d10_dice.py` — physics and dice
 
@@ -169,9 +171,11 @@ Calls `score_breakdown()` to get labelled groups, then renders die icons (using 
 
 ---
 
-## Setup
+## 🛠 Setup
 
 **Requirements:** Python 3.9+, a working microphone (optional — hold Space without screaming if unavailable)
+
+**Technology:** Python 3.12, Pygame 2.6, sounddevice 0.5
 
 ```bash
 # Create and activate a virtual environment
@@ -192,3 +196,10 @@ To verify your Pygame installation:
 ```bash
 python -m pygame.tests
 ```
+
+## Contributors
+
+- Bc. Tomáš Grusz (@tomasgrusz)
+- Bc. Kristian Kolumber (@kolumber23)
+- Bc. Apolena Kučerová (@apikucerova-kickass)
+- Bc. Tomáš Pour (@pourik20)
