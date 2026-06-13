@@ -4,9 +4,9 @@ import pygame
 
 from d10_score import calculate_score, score_breakdown
 from d10_sprites import get_face, scale_face
+from settings import WIDTH
 
 
-WIDTH = 960
 ICON_SIZE = 28
 Y = 145
 

@@ -1,0 +1,31 @@
+WIDTH = 960
+HEIGHT = 720
+BACKGROUND_COLOR = (24, 24, 32)
+FLOOR_TILE_PATH = "sprites/floor-tile.png"
+QR_CODE_PATH = "sprites/qr.png"
+RAGE_QUIT_GIF_PATH = "sprites/rage_quit.gif"
+QR_CODE_SIZE = 132
+END_SCREEN_GIF_SIZE = (300, 169)
+FLOOR_TILE_COLUMNS = 28
+FLOOR_TILE_ROWS = 12
+
+TITLE_COLOR = (240, 240, 245)
+HUD_COLOR = (245, 245, 245)
+HUD_SHADOW = (0, 0, 0)
+
+LEVELS = [5, 10, 25, 50, 100, 250, 500]
+LEVEL_DICE = [1, 2, 3, 4, 6, 8, 10]
+MAX_TRIES = 10
+POWER_CHARGE_SPEED = 0.85
+# Use "hold" for development, "shout" for production.
+THROW_POWER_MODE = "shout"
+SHOUT_VOLUME_THRESHOLD = 0.9
+SHOUT_RETRY_TRIES = 1
+
+WHITE = (255, 255, 255)
+BLACK = (20, 20, 20)
+DARK = (35, 35, 35)
+GRAY = (130, 130, 130)
+LIGHT_GRAY = (210, 210, 210)
+GOLD = (230, 180, 60)
+PANEL_BG = (20, 20, 20)

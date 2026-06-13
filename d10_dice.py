@@ -5,10 +5,9 @@ import pygame
 
 from d10_roll import create_idle_roll_state, get_roll_face, start_roll
 from d10_sprites import ROWS, get_face, scale_face
+from settings import HEIGHT
 
 
-WIDTH = 960
-HEIGHT = 720
 GRID_COLUMNS = 3
 MAX_DICE = 10
 DIE_SIZE = 64
