@@ -1,4 +1,12 @@
+import array
+import math
+
 import pygame
+
+try:
+    import sounddevice as sd
+except Exception:
+    sd = None
 
 from d10_board import (
     add_die,
@@ -18,6 +26,8 @@ WIDTH = 960
 HEIGHT = 720
 BACKGROUND_COLOR = (24, 24, 32)
 FLOOR_TILE_PATH = "sprites/floor-tile.png"
+QR_CODE_PATH = "sprites/qr.png"
+QR_CODE_SIZE = 132
 FLOOR_TILE_COLUMNS = 28
 FLOOR_TILE_ROWS = 12
 
@@ -29,6 +39,10 @@ LEVELS = [5, 10, 25, 50, 100, 250, 500]
 LEVEL_DICE = [1, 2, 3, 4, 6, 8, 10]
 MAX_TRIES = 10
 POWER_CHARGE_SPEED = 0.85
+# Use "hold" for development, "shout" for production.
+THROW_POWER_MODE = "shout"
+SHOUT_VOLUME_THRESHOLD = 0.9
+SHOUT_RETRY_TRIES = 1
 
 WHITE = (255, 255, 255)
 BLACK = (20, 20, 20)
@@ -75,6 +89,81 @@ class GameSession:
         self.waiting_for_settle = False
         self.action_button = None
         setup_level_dice(self.dice, self.current_level, self.floor_rect)
+
+    def grant_shout_retry(self):
+        self.tries_left = SHOUT_RETRY_TRIES
+        self.game_state = "playing"
+        self.charging_throw = False
+        self.throw_power = 0.0
+        self.waiting_for_settle = False
+        self.action_button = None
+        if self.dice:
+            select_die(self.dice, self.selected_index)
+
+
+class ShoutMeter:
+    def __init__(self, threshold):
+        self.threshold = threshold
+        self.volume = 0.0
+        self.available = False
+        self.error = None
+        self.stream = None
+        self.was_loud = False
+
+    def start(self):
+        if sd is None:
+            self.error = "Mikrofon není dostupný: chybí knihovna sounddevice."
+            return
+
+        try:
+            self.stream = sd.RawInputStream(
+                samplerate=16000,
+                blocksize=1024,
+                channels=1,
+                dtype="int16",
+                callback=self._audio_callback,
+            )
+            self.stream.start()
+            self.available = True
+        except Exception:
+            self.error = "Mikrofon není dostupný nebo není povolený."
+            self.available = False
+
+    def stop(self):
+        if self.stream is None:
+            return
+
+        try:
+            self.stream.stop()
+            self.stream.close()
+        except Exception:
+            pass
+        self.stream = None
+
+    def _audio_callback(self, indata, frames, time_info, status):
+        samples = array.array("h")
+        samples.frombytes(bytes(indata))
+        if not samples:
+            self.volume = 0.0
+            return
+
+        square_sum = sum(sample * sample for sample in samples)
+        rms = math.sqrt(square_sum / len(samples)) / 32768
+        self.volume = min(1.0, rms)
+
+    def consume_shout(self):
+        is_loud = self.available and self.volume >= self.threshold
+        if is_loud and not self.was_loud:
+            self.was_loud = True
+            return True
+
+        if not is_loud:
+            self.was_loud = False
+
+        return False
+
+    def power_ratio(self):
+        return min(1.0, self.volume / self.threshold)
 
 
 def draw_floor_tiles(screen, tile_image):
@@ -194,6 +283,29 @@ def draw_power_bar(screen, font, power, charging):
     screen.blit(label_surface, (bar_rect.x, bar_rect.y + bar_rect.height + 6))
 
 
+def draw_shout_bar(screen, font, shout_meter, y):
+    bar_width = 420
+    bar_height = 24
+    bar_rect = pygame.Rect((WIDTH - bar_width) // 2, y, bar_width, bar_height)
+    volume_ratio = min(1.0, shout_meter.volume / shout_meter.threshold)
+    fill_rect = bar_rect.copy()
+    fill_rect.width = round(bar_width * volume_ratio)
+
+    pygame.draw.rect(screen, (35, 35, 48), bar_rect, border_radius=7)
+    if fill_rect.width > 0:
+        fill_color = (110, 255, 150) if shout_meter.volume >= shout_meter.threshold else (255, 205, 80)
+        pygame.draw.rect(screen, fill_color, fill_rect, border_radius=7)
+    pygame.draw.rect(screen, (170, 170, 190), bar_rect, 2, border_radius=7)
+
+    if shout_meter.available:
+        label = "Hlasitost křiku"
+    else:
+        label = shout_meter.error or "Mikrofon není dostupný."
+
+    label_surface = font.render(label, True, HUD_COLOR)
+    screen.blit(label_surface, ((WIDTH - label_surface.get_width()) // 2, y + bar_height + 7))
+
+
 def setup_level_dice(dice, level, floor_rect):
     dice[:] = []
     for _ in range(LEVEL_DICE[level]):
@@ -210,7 +322,14 @@ def attempt_throw(die, dice, power, floor_rect, tries_left):
     return tries_left
 
 
-def draw_end_screen(screen, result_font, hud_font, score, game_state, current_level):
+def update_throw_power(current_power, dt_ms, shout_meter):
+    if THROW_POWER_MODE == "shout":
+        return max(current_power, shout_meter.power_ratio())
+
+    return min(1.0, current_power + POWER_CHARGE_SPEED * (dt_ms / 1000.0))
+
+
+def draw_end_screen(screen, result_font, hud_font, score, game_state, current_level, shout_meter, qr_code):
     overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 170))
     screen.blit(overlay, (0, 0))
@@ -236,8 +355,25 @@ def draw_end_screen(screen, result_font, hud_font, score, game_state, current_le
     score_surface = hud_font.render(score_text, True, HUD_COLOR)
     screen.blit(score_surface, ((WIDTH - score_surface.get_width()) // 2, HEIGHT // 2 - 20))
 
+    button_y = HEIGHT // 2 + 40
+    if game_state == "game_over":
+        payment_lines = [
+            "Vyčerpal jsi bezplatné pokusy.",
+            "Naskenuj QR kód, nebo hodně zakřič pro jeden pokus navíc.",
+        ]
+        for i, line in enumerate(payment_lines):
+            payment_surface = hud_font.render(line, True, HUD_COLOR)
+            screen.blit(
+                payment_surface,
+                ((WIDTH - payment_surface.get_width()) // 2, HEIGHT // 2 + 18 + i * 32),
+            )
+        qr_rect = qr_code.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 152))
+        screen.blit(qr_code, qr_rect)
+        draw_shout_bar(screen, hud_font, shout_meter, HEIGHT // 2 + 240)
+        return None
+
     button_w, button_h = 220, 52
-    button_rect = pygame.Rect((WIDTH - button_w) // 2, HEIGHT // 2 + 40, button_w, button_h)
+    button_rect = pygame.Rect((WIDTH - button_w) // 2, button_y, button_w, button_h)
     pygame.draw.rect(screen, (60, 60, 85), button_rect, border_radius=10)
     pygame.draw.rect(screen, (160, 160, 200), button_rect, 2, border_radius=10)
 
@@ -361,9 +497,15 @@ def controls_screen(screen, clock, floor_tile, title_font, hud_font):
         clock.tick(60)
 
 
-def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game_session):
+def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game_session, qr_code):
     floor_rect = game_session.floor_rect
     faces = load_d10_faces()
+    shout_meter = ShoutMeter(SHOUT_VOLUME_THRESHOLD)
+    shout_meter.start()
+
+    def leave_game(next_state):
+        shout_meter.stop()
+        return next_state
 
     menu_button = pygame.Rect(24, 24, 120, 44)
     restart_button = pygame.Rect(160, 24, 145, 44)
@@ -374,20 +516,24 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                return "quit"
+                return leave_game("quit")
 
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if menu_button.collidepoint(event.pos):
-                    return "menu"
+                    return leave_game("menu")
 
-                if restart_button.collidepoint(event.pos):
+                if restart_button.collidepoint(event.pos) and game_session.game_state != "game_over":
                     game_session.reset()
                     continue
 
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                return "menu"
+                return leave_game("menu")
 
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
+            if (
+                event.type == pygame.KEYDOWN
+                and event.key == pygame.K_r
+                and game_session.game_state != "game_over"
+            ):
                 game_session.reset()
                 continue
 
@@ -430,9 +576,10 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game
                             game_session.reset()
 
         if game_session.charging_throw:
-            game_session.throw_power = min(
-                1.0,
-                game_session.throw_power + POWER_CHARGE_SPEED * (dt_ms / 1000.0),
+            game_session.throw_power = update_throw_power(
+                game_session.throw_power,
+                dt_ms,
+                shout_meter,
             )
 
         update_dice_physics(game_session.dice, dt_ms, floor_rect)
@@ -455,6 +602,9 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game
             elif game_session.tries_left == 0:
                 game_session.game_state = "game_over"
 
+        if game_session.game_state == "game_over" and shout_meter.consume_shout():
+            game_session.grant_shout_retry()
+
         screen.fill(BACKGROUND_COLOR)
         draw_floor_tiles(screen, floor_tile)
 
@@ -462,7 +612,8 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game
         screen.blit(title_surface, (330, 18))
 
         draw_button(screen, hud_font, menu_button, "MENU")
-        draw_button(screen, hud_font, restart_button, "RESTART")
+        restart_enabled = game_session.game_state != "game_over"
+        draw_button(screen, hud_font, restart_button, "RESTART", enabled=restart_enabled)
 
         draw_dice(screen, faces, game_session.dice)
         draw_dice_summary(screen, faces, game_session.dice, hud_font, floor_rect)
@@ -503,6 +654,8 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game
                 score,
                 game_session.game_state,
                 game_session.current_level,
+                shout_meter,
+                qr_code,
             )
 
         pygame.display.flip()
@@ -522,6 +675,8 @@ def main():
     result_font = pygame.font.Font(None, 80)
 
     floor_tile = pygame.image.load(FLOOR_TILE_PATH).convert_alpha()
+    qr_code = pygame.image.load(QR_CODE_PATH).convert()
+    qr_code = pygame.transform.scale(qr_code, (QR_CODE_SIZE, QR_CODE_SIZE))
     floor_rect = get_floor_tile_grid_rect(floor_tile)
     game_session = GameSession(floor_rect)
 
@@ -541,6 +696,7 @@ def main():
                 hud_font,
                 result_font,
                 game_session,
+                qr_code,
             )
         else:
             state = "menu"
