@@ -636,9 +636,6 @@ def game_loop(screen, clock, floor_tile, title_font, hud_font, result_font, game
 
         if game_session.waiting_for_settle and not any_die_moving(game_session.dice):
             game_session.waiting_for_settle = False
-            if game_session.game_state == "playing" and game_session.tries_left > 0 and game_session.dice:
-                game_session.selected_index = (game_session.selected_index + 1) % len(game_session.dice)
-                select_die(game_session.dice, game_session.selected_index)
 
         score = calculate_score([die["value"] for die in game_session.dice])
 
