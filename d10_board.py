@@ -93,6 +93,12 @@ def start_die_roll(die):
     return die["roll_state"]
 
 
+def reset_dice_values(dice):
+    for die in dice:
+        die["value"] = 0
+        die["roll_state"] = create_idle_roll_state(0)
+
+
 def update_die_roll(die):
     roll_state = die["roll_state"]
     if not roll_state["active"]:
